@@ -1,38 +1,48 @@
-import numpy as np
+# import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from Network import (ActorNetwork,CriticNetwork)
-from datetime import datetime
+# from Network import (ActorNetwork,CriticNetwork)
+# from datetime import datetime
 
-PATH='./results/'
+PATH = './results/'
+RAND_RANGE = 1000
 
-RAND_RANGE=1000
-class A3C(object):
-    def __init__(self,is_central,model_type,s_dim,action_dim,actor_lr=1e-4,critic_lr=1e-3):
-        self.s_dim=s_dim
-        self.a_dim=action_dim
-        self.discount=0.99
-        self.entropy_weight=0.5
-        self.entropy_eps=1e-6
-        self.model_type=model_type
+class A3C():
+    """
+    Asynchronous Actor Critic Network Implementation.
+    """
 
-        self.is_central=is_central
-        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    def __init__(self, is_central, model_type, state_dim, action_dim, actor_lr=1e-4, critic_lr=1e-3):
+        self.state_dim = state_dim
+        self.a_dim = action_dim
+        self.discount = 0.99
+        self.entropy_weight = 0.5
+        self.entropy_eps = 1e-6
+        self.model_type = model_type
 
-        self.actorNetwork=ActorNetwork(self.s_dim,self.a_dim).double().to(self.device)
+        self.is_central = is_central
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # TODO: Replace with the MORL neural network.
+        self.actorNetwork = ActorNetwork(self.state_dim,self.a_dim).double().to(self.device)
+
+        # Q. What does is_central mean?
+        # A. A3C has many agents, one of which is the central
+        # agent. If true, this is the central agent.
         if self.is_central:
-            # unify default parameters for tensorflow and pytorch
-            self.actorOptim=torch.optim.RMSprop(self.actorNetwork.parameters(),lr=actor_lr,alpha=0.9,eps=1e-10)
-            self.actorOptim.zero_grad()
-            if model_type<2:
+            # Unify default parameters for tensorflow and pytorch.
+            self.actor_optim = torch.optim.RMSprop(self.actorNetwork.parameters(), lr=actor_lr, alpha=0.9, eps=1e-10)
+            self.actor_optim.zero_grad()
+            if model_type < 2:
                 '''
                 model==0 mean original
                 model==1 mean critic_td
                 model==2 mean only actor
                 '''
-                self.criticNetwork=CriticNetwork(self.s_dim,self.a_dim).double().to(self.device)
-                self.criticOptim=torch.optim.RMSprop(self.criticNetwork.parameters(),lr=critic_lr,alpha=0.9,eps=1e-10)
+                # So, only the central agent has a the CriticNetwork....
+                self.criticNetwork = CriticNetwork(self.state_dim,self.a_dim).double().to(self.device)
+                self.criticOptim = torch.optim.RMSprop(self.criticNetwork.parameters(), lr=critic_lr, alpha=0.9, eps=1e-10)
                 self.criticOptim.zero_grad()
         else:
             self.actorNetwork.eval()
@@ -102,8 +112,8 @@ class A3C(object):
     def updateNetwork(self):
         # use the feature of accumulating gradient in pytorch
         if self.is_central:
-            self.actorOptim.step()
-            self.actorOptim.zero_grad()
+            self.actor_optim.step()
+            self.actor_optim.zero_grad()
             if self.model_type<2:
                 self.criticOptim.step()
                 self.criticOptim.zero_grad()
