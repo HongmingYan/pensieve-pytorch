@@ -14,6 +14,13 @@ from torch.distributions.categorical import Categorical
 #
 # https://github.com/RunzheYang/MORL/blob/master/multimario/model.py
 
+# TODO:
+
+# - [ ] What are the differences between this MORL model and Network.py?
+
+# Custom flattening layer. See
+# https://stackoverflow.com/questions/55546873/how-do-i-flatten-a-tensor-in-pytorch
+# for more info.
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
