@@ -22,12 +22,17 @@ from torch.distributions.categorical import Categorical
 # https://stackoverflow.com/questions/55546873/how-do-i-flatten-a-tensor-in-pytorch
 # for more info.
 class Flatten(nn.Module):
-    def forward(self, input):
-        return input.view(input.size(0), -1)
+    '''A layer that flattens a tensor.
+    '''
+    def forward(self, inputs):
+        return inputs.view(inputs.size(0), -1)
 
 # Envelope MORL CNN Actor Critic Network implementation, adapted for
 # adaptive bitrate algorithm.
 class EnvelopeMORLCnnActorCriticNetwork(nn.Module):
+    """
+    Envelope MORL CNN Actor Critic Network
+    """
     def __init__(self, input_size, output_size, reward_size):
         super(EnvelopeMORLCnnActorCriticNetwork, self).__init__()
 

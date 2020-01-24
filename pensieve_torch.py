@@ -86,7 +86,7 @@ def testing(epoch, actor_model,log_file):
 def central_agent(net_params_queues, exp_queues, model_type):
     torch.set_num_threads(1)
 
-    timenow=datetime.now()
+    timenow = datetime.now()
     assert len(net_params_queues) == NUM_AGENTS
     assert len(exp_queues) == NUM_AGENTS
 
@@ -95,12 +95,12 @@ def central_agent(net_params_queues, exp_queues, model_type):
                         level=logging.INFO)
 
 
-    net=A3C(IS_CENTRAL,model_type,[S_INFO,S_LEN],A_DIM,ACTOR_LR_RATE,CRITIC_LR_RATE)
+    net = A3C(IS_CENTRAL, model_type, [S_INFO,S_LEN], A_DIM, ACTOR_LR_RATE, CRITIC_LR_RATE)
     test_log_file=open(LOG_FILE+'_test','w')
 
     if CRITIC_MODEL is not None and os.path.exists(ACTOR_MODEL):
-        net.actorNetwork.load_state_dict(torch.load(ACTOR_MODEL))
-        net.criticNetwork.load_state_dict(torch.load(CRITIC_MODEL))
+        net.actor_network.load_state_dict(torch.load(ACTOR_MODEL))
+        net.critic_network.load_state_dict(torch.load(CRITIC_MODEL))
 
 
     epoch=0
@@ -157,10 +157,10 @@ def central_agent(net_params_queues, exp_queues, model_type):
         if epoch % MODEL_SAVE_INTERVAL == 0:
             # Save the neural net parameters to disk.
             print("\nTrain ep:"+str(epoch)+",time use :"+str((datetime.now()-timenow).seconds)+"s\n")
-            timenow=datetime.now()
-            torch.save(net.actorNetwork.state_dict(),SUMMARY_DIR+"/actor.pt")
+            timenow = datetime.now()
+            torch.save(net.actor_network.state_dict(), SUMMARY_DIR+"/actor.pt")
             if model_type<2:
-                torch.save(net.criticNetwork.state_dict(),SUMMARY_DIR+"/critic.pt")
+                torch.save(net.critic_network.state_dict(), SUMMARY_DIR+"/critic.pt")
             testing(epoch,SUMMARY_DIR+"/actor.pt",test_log_file)
 
 
@@ -329,7 +329,7 @@ def main(arglist):
     # create a coordinator and multiple agent processes
     # (note: threading is not desirable due to python GIL)
     coordinator = mp.Process(target=central_agent,
-                             args=(net_params_queues, exp_queues,arglist.model_type))
+                             args=(net_params_queues, exp_queues, arglist.model_type))
     coordinator.start()
 
     all_cooked_time, all_cooked_bw, _ = load_trace.load_trace(TRAIN_TRACES)
@@ -338,7 +338,7 @@ def main(arglist):
         agents.append(mp.Process(target=agent,
                                  args=(i, all_cooked_time, all_cooked_bw,
                                        net_params_queues[i],
-                                       exp_queues[i],arglist.model_type)))
+                                       exp_queues[i], arglist.model_type)))
     for i in range(NUM_AGENTS):
         agents[i].start()
 
@@ -350,10 +350,10 @@ def main(arglist):
     print(str(datetime.now()-time))
 
 def parse_args():
-    parser=argparse.ArgumentParser("Pensieve")
+    parser = argparse.ArgumentParser("Pensieve")
     parser.add_argument("--model_type",type=int,default=0,help="Refer to README for the meaning of this parameter")
     return parser.parse_args()
 
 if __name__ == '__main__':
-    arglist=parse_args()
+    arglist = parse_args()
     main(arglist)

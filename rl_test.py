@@ -47,7 +47,7 @@ def main():
     net=A3C(False,0,[S_INFO,S_LEN],A_DIM)
 
     # restore neural net parameters
-    net.actorNetwork.load_state_dict(torch.load(ACTOR_MODEL))
+    net.actor_network.load_state_dict(torch.load(ACTOR_MODEL))
     print("Testing model restored.")
 
     time_stamp = 0
