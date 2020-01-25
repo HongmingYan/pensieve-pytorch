@@ -18,6 +18,9 @@ VIDEO_SIZE_FILE = './data/video_size_'
 
 
 class Environment:
+    """
+    Simulated Video Streaming and Adaptive Bit Rate Algorithm Environment
+    """
     def __init__(self, all_cooked_time, all_cooked_bw, random_seed=RANDOM_SEED):
         assert len(all_cooked_time) == len(all_cooked_bw)
 
@@ -42,8 +45,8 @@ class Environment:
         self.video_size = {}  # in bytes
         for bitrate in range(BITRATE_LEVELS):
             self.video_size[bitrate] = []
-            with open(VIDEO_SIZE_FILE + str(bitrate)) as f:
-                for line in f:
+            with open(VIDEO_SIZE_FILE + str(bitrate)) as file:
+                for line in file:
                     self.video_size[bitrate].append(int(line.split()[0]))
 
     def get_video_chunk(self, quality):
@@ -52,17 +55,17 @@ class Environment:
         assert quality < BITRATE_LEVELS
 
         video_chunk_size = self.video_size[quality][self.video_chunk_counter]
-        
+
         # use the delivery opportunity in mahimahi
         delay = 0.0  # in ms
         video_chunk_counter_sent = 0  # in bytes
-        
+
         while True:  # download video chunk over mahimahi
             throughput = self.cooked_bw[self.mahimahi_ptr] \
                          * B_IN_MB / BITS_IN_BYTE
             duration = self.cooked_time[self.mahimahi_ptr] \
                        - self.last_mahimahi_time
-	    
+
             packet_payload = throughput * duration * PACKET_PAYLOAD_PORTION
 
             if video_chunk_counter_sent + packet_payload > video_chunk_size:
@@ -164,17 +167,15 @@ class Environment:
             end_of_video, \
             video_chunk_remain
 
-    def setEnvironmentPtr(self,ptrTraceIndex,ptrIndex):
-        self.trace_idx=ptrTraceIndex
+    def setEnvironmentPtr(self, ptrTraceIndex, ptrIndex):
+        self.trace_idx = ptrTraceIndex
         self.cooked_time = self.all_cooked_time[self.trace_idx]
         self.cooked_bw = self.all_cooked_bw[self.trace_idx]
         self.video_chunk_counter = 0
         self.buffer_size = 0
 
-
         # randomize the start point of the trace
         # note: trace file starts with time 0
         self.mahimahi_ptr = ptrIndex % len(self.cooked_bw)
         self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr - 1]
-
 

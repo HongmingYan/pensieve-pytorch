@@ -38,25 +38,25 @@ TRAIN_TRACES = './data/cooked_traces/'
 #ACTOR_MODEL = './results/actor.pt'
 CRITIC_MODEL = None
 
-TOTALEPOCH=30000
-IS_CENTRAL=True
-NO_CENTRAL=False
+TOTALEPOCH = 30000
+IS_CENTRAL = True
+NO_CENTRAL = False
 
-def testing(epoch, actor_model,log_file):
+def testing(epoch, actor_model, log_file):
     # clean up the test results folder
     os.system('rm -r ' + TEST_LOG_FOLDER)
     os.system('mkdir ' + TEST_LOG_FOLDER)
-    
+
     # run test script
     os.system('python rl_test.py '+actor_model)
-    
+
     # append test performance to the log
     rewards = []
     test_log_files = os.listdir(TEST_LOG_FOLDER)
     for test_log_file in test_log_files:
         reward = []
-        with open(TEST_LOG_FOLDER + test_log_file, 'r') as f:
-            for line in f:
+        with open(TEST_LOG_FOLDER + test_log_file, 'r') as file:
+            for line in file:
                 parse = line.split()
                 try:
                     reward.append(float(parse[-1]))
@@ -134,9 +134,10 @@ def central_agent(net_params_queues, exp_queues, model_type):
         for i in range(NUM_AGENTS):
             s_batch, a_batch, r_batch, terminal, info = exp_queues[i].get()
 
-
-            net.getNetworkGradient(np.stack(s_batch[1:],axis=0),np.vstack(a_batch[1:]),np.vstack(r_batch[1:]),terminal=terminal)
-
+            net.getNetworkGradient(np.stack(s_batch[1:], axis=0),
+                                   np.vstack(a_batch[1:]),
+                                   np.vstack(r_batch[1:]),
+                                   terminal=terminal)
 
             total_reward += np.sum(r_batch)
             total_batch_len += len(r_batch)

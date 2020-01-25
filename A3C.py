@@ -2,11 +2,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from Network import (ActorNetwork,CriticNetwork)
+from Network import (ActorNetwork, CriticNetwork)
 # from datetime import datetime
 
 PATH = './results/'
 RAND_RANGE = 1000
+
+MODEL_ORIGINAL = 0
+MODEL_CRITIC_TD = 1
+MODEL_ONLY_ACTOR = 2
 
 class A3C():
     """
@@ -33,9 +37,12 @@ class A3C():
         # agent. If true, this is the central agent.
         if self.is_central:
             # Unify default parameters for tensorflow and pytorch.
-            self.actor_optim = torch.optim.RMSprop(self.actor_network.parameters(), lr=actor_lr, alpha=0.9, eps=1e-10)
+            self.actor_optim = torch.optim.RMSprop(self.actor_network.parameters(),
+                                                   lr=actor_lr,
+                                                   alpha=0.9,
+                                                   eps=1e-10)
             self.actor_optim.zero_grad()
-            if model_type < 2:
+            if model_type < MODEL_ONLY_ACTOR:
                 '''
                 model==0 mean original
                 model==1 mean critic_td
@@ -50,15 +57,16 @@ class A3C():
 
         self.loss_function = nn.MSELoss()
 
- 
 
+    def getNetworkGradient(self, s_batch, a_batch, r_batch, terminal):
+        """
+        Calculates the network gradient based on a batch.
+        """
 
-    def getNetworkGradient(self,s_batch,a_batch,r_batch,terminal):
-        s_batch=torch.from_numpy(s_batch).to(self.device)
-        a_batch=torch.from_numpy(a_batch).to(self.device)
-        R_batch=torch.zeros(r_batch.shape,dtype=torch.double).to(self.device)
-        r_batch=torch.from_numpy(r_batch).to(self.device)
-
+        s_batch = torch.from_numpy(s_batch).to(self.device)
+        a_batch = torch.from_numpy(a_batch).to(self.device)
+        R_batch = torch.zeros(r_batch.shape, dtype=torch.double).to(self.device)
+        r_batch = torch.from_numpy(r_batch).to(self.device)
 
         if terminal:
             pass
@@ -67,27 +75,26 @@ class A3C():
         for t in reversed(range(r_batch.shape[0]-1)):
             R_batch[t,-1]=r_batch[t,-1] + self.discount*R_batch[t+1,-1]
 
-        if self.model_type<2:
+        if self.model_type < 2:
             with torch.no_grad():
-                v_batch=self.critic_network.forward(s_batch).to(self.device)
-            td_batch=R_batch-v_batch
+                v_batch = self.critic_network.forward(s_batch).to(self.device)
+            td_batch = R_batch-v_batch
         else:
-            td_batch=R_batch
+            td_batch = R_batch
 
-        probability=self.actor_network.forward(s_batch)
-        actor_loss=torch.sum(torch.log(torch.sum(probability*a_batch,1,keepdim=True))*(-td_batch))+self.entropy_weight*torch.sum(probability*torch.log(probability+self.entropy_eps))
+        probability = self.actor_network.forward(s_batch)
+        actor_loss = torch.sum(torch.log(torch.sum(probability*a_batch,1,keepdim=True))*(-td_batch))+self.entropy_weight*torch.sum(probability*torch.log(probability+self.entropy_eps))
         actor_loss.backward()
 
-
-        if self.model_type<2:
-            if self.model_type==0:
+        if self.model_type < 2:
+            if self.model_type == 0:
                 # original
-                critic_loss=self.loss_function(R_batch,self.critic_network.forward(s_batch))
+                critic_loss = self.loss_function(R_batch, self.critic_network.forward(s_batch))
             else:
                 # cricit_td
-                v_batch=self.critic_network.forward(s_batch[:-1])
-                next_v_batch=self.critic_network.forward(s_batch[1:]).detach()
-                critic_loss=self.loss_function(r_batch[:-1]+self.discount*next_v_batch,v_batch)
+                v_batch = self.critic_network.forward(s_batch[:-1])
+                next_v_batch = self.critic_network.forward(s_batch[1:]).detach()
+                critic_loss = self.loss_function(r_batch[:-1]+self.discount*next_v_batch,v_batch)
 
             critic_loss.backward()
 
