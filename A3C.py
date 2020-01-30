@@ -23,6 +23,8 @@ class A3C():
         self.a_dim = action_dim
         self.discount = 0.99
         self.entropy_weight = 0.5
+        # Q. What is entropy eps here? I think it has something to do
+        # with a regularization hyperparameter.
         self.entropy_eps = 1e-6
         self.model_type = model_type
 

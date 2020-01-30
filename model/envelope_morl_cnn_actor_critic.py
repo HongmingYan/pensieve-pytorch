@@ -17,6 +17,7 @@ from torch.distributions.categorical import Categorical
 # TODO:
 
 # - [ ] What are the differences between this MORL model and Network.py?
+# - [ ] Replace `Network.py` in the base directory with this MORL version.
 
 # Custom flattening layer. See
 # https://stackoverflow.com/questions/55546873/how-do-i-flatten-a-tensor-in-pytorch

@@ -1,3 +1,8 @@
+# pensieve_pytorch.py
+#
+# This is the main file that is called to run training for the
+# Pensieve framework.
+
 import os
 import logging
 import argparse
@@ -43,9 +48,15 @@ IS_CENTRAL = True
 NO_CENTRAL = False
 
 def testing(epoch, actor_model, log_file):
+    '''Runs testing for the actor_model
+
+    Note the critic is not necessary for testing, since the actor is
+    the only thing needed to produce actions.
+    '''
+
     # clean up the test results folder
-    os.system('rm -r ' + TEST_LOG_FOLDER)
-    os.system('mkdir ' + TEST_LOG_FOLDER)
+    os.system('rm -r ' + TEST_LOG_FOLDER) # delete the test directory
+    os.system('mkdir ' + TEST_LOG_FOLDER) # create a new test directory
 
     # run test script
     os.system('python rl_test.py '+actor_model)
@@ -84,6 +95,8 @@ def testing(epoch, actor_model, log_file):
 
 
 def central_agent(net_params_queues, exp_queues, model_type):
+    '''I think this returns the central_agent'''
+
     torch.set_num_threads(1)
 
     timenow = datetime.now()
@@ -94,11 +107,15 @@ def central_agent(net_params_queues, exp_queues, model_type):
                         filemode='w',
                         level=logging.INFO)
 
-
+    # net, here, is the main instantiation of the A3C network.
     net = A3C(IS_CENTRAL, model_type, [S_INFO,S_LEN], A_DIM, ACTOR_LR_RATE, CRITIC_LR_RATE)
     test_log_file=open(LOG_FILE+'_test','w')
 
     if CRITIC_MODEL is not None and os.path.exists(ACTOR_MODEL):
+        # Here, actor_network and critic_network are being directly accessed,
+        # for restoration from disk.
+        #
+        # TODO: This needs to be replaced with an MORL version.
         net.actor_network.load_state_dict(torch.load(ACTOR_MODEL))
         net.critic_network.load_state_dict(torch.load(CRITIC_MODEL))
 
@@ -159,6 +176,9 @@ def central_agent(net_params_queues, exp_queues, model_type):
             # Save the neural net parameters to disk.
             print("\nTrain ep:"+str(epoch)+",time use :"+str((datetime.now()-timenow).seconds)+"s\n")
             timenow = datetime.now()
+            # TODO: This is where the model gets saved, we need to
+            # make sure this is compatible with our new A3C MORL
+            # version.
             torch.save(net.actor_network.state_dict(), SUMMARY_DIR+"/actor.pt")
             if model_type<2:
                 torch.save(net.critic_network.state_dict(), SUMMARY_DIR+"/critic.pt")

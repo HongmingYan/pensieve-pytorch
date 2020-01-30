@@ -1,3 +1,7 @@
+# rl_test.py
+
+# This is the test script, called from `pensieve_pytorch.py`'s testing function.
+
 import os
 import sys
 import numpy as np
@@ -44,7 +48,7 @@ def main():
 
     # all models have same actor network
     # so model_type can be anything
-    net=A3C(False,0,[S_INFO,S_LEN],A_DIM)
+    net = A3C(False, 0, [S_INFO, S_LEN], A_DIM)
 
     # restore neural net parameters
     net.actor_network.load_state_dict(torch.load(ACTOR_MODEL))
@@ -76,6 +80,10 @@ def main():
         time_stamp += delay  # in ms
         time_stamp += sleep_time  # in ms
 
+        # [ ] TODO: This is where we can change the code to add weights to modify the reward structure.
+        # [ ] TODO: "Weights" (preferences) may already exist as hyperparameters. But we want to get these from the MORL settings.
+        # [ ] TODO: How do we get the weights from the MORL settings?
+        
         # reward is video quality - rebuffer penalty - smoothness
         reward = VIDEO_BIT_RATE[bit_rate] / M_IN_K \
                  - REBUF_PENALTY * rebuf \
@@ -113,6 +121,11 @@ def main():
         state[4, :A_DIM] = np.array(next_video_chunk_sizes) / M_IN_K / M_IN_K  # mega byte
         state[5, -1] = np.minimum(video_chunk_remain, CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
 
+        # TODO: ***** LOOK HERE LESLEY FOR AN EXAMPLE *****
+        # This is where the actions are pulled out of the model, giving it a state
+        # model(state) -> action_probability (vector prusumably)
+        # TODO: What does the input and output look like here?
+        
         action_prob = net.actionSelect(np.reshape(state, (1, S_INFO, S_LEN)))
         action_cumsum = np.cumsum(action_prob)
         bit_rate = (action_cumsum > np.random.randint(1, RAND_RANGE) / float(RAND_RANGE)).argmax()

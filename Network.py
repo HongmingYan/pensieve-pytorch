@@ -1,3 +1,32 @@
+# Kasim's notes:
+
+# This is the core neural network model that we want to replace with
+# the MORL version from the `models/` directory.
+
+# TODO:
+
+# - [ ] Q. The new model has weights as inputs. How do we integrate it
+#   with the Pensieve framework?
+
+# - [ ] Where are the classes from this file used in the larger
+#   Pensieve framework and what are the inputs and outputs?
+
+# A.
+
+# File: A3C.py
+# 5:22:from Network import (ActorNetwork, CriticNetwork)
+# 33:30:        self.actor_network = ActorNetwork(self.state_dim, self.a_dim).double().to(self.device)
+# 116:19:    def hardUpdateActorNetwork(self,actor_net_params):
+
+# - [x] What are the classes in this file that need to be replaced?
+#   - ActorNetwork
+#   - CriticNetwork
+
+# - [ ] Search for all instances of ActorNetwork and CriticNetwork in
+#   the whole repository and list them.
+
+# - [ ] Look and see what the inputs and outputs are there where
+#   Actor/CriticNetwork are used in the larger framework.
 
 import torch
 import torch.nn as nn
