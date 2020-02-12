@@ -1,3 +1,11 @@
+'''This is a modified version of the original 'Network.py' file,
+adapted for MORL.
+
+This is the core A3C module that represents our neural network. It has
+an Actor and a Critic.
+
+'''
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,15 +15,43 @@ from datetime import datetime
 
 class ActorNetwork(nn.Module):
     # actornetwork pass the test
-    def __init__(self, state_dim, action_dim, reward_dim, n_conv=128, n_fc=128, n_fc1=128):
+    '''
+
+    reward_dim: Dimension size of reward vector. Our default is 3
+    based on our MORL formula for the ABR algorithm. The three reward
+    components are bitrate, rebuffering, and smoothness.
+
+    '''
+    def __init__(self, state_dim, action_dim, reward_dim=3, n_conv=128, n_fc=128, n_fc1=128):
         super(ActorNetwork, self).__init__()
+
+        # state dimension size
         self.s_dim = state_dim
+
+        # action dimension size
         self.a_dim = action_dim
-        self.r_dim = reward_dim
+
+        # This is the reward dimension, added for MORL.
+        ############################        
+        self.reward_dim = reward_dim
+        ############################
+
+        # vector out dimension, default is 128....not sure what this is
         self.vectorOutDim = n_conv
+
+        # scalar out dimension, default is 128...not sure what this is
         self.scalarOutDim = n_fc
-        self.numFcInput = 2 * self.vectorOutDim * (
-                    self.s_dim[1] - 4 + 1) + 3 * self.scalarOutDim + self.vectorOutDim * (self.a_dim - 4 + 1)
+
+        # number of fully connected inputs:
+        # 
+        self.numFcInput = (2 *
+                           self.vectorOutDim *
+                           (self.s_dim[1] - 4 + 1) +
+                           3 * self.scalarOutDim +
+                           self.vectorOutDim *
+                           (self.a_dim - 4 + 1))
+
+        # n_fc1, defaults to 128
         self.numFcOutput = n_fc1
 
         # -------------------define layer-------------------
@@ -25,17 +61,19 @@ class ActorNetwork(nn.Module):
 
         self.cConv1d = nn.Conv1d(1, self.vectorOutDim, 4)
 
-        # how to match the preferences size???
-        self.preferenceFc = nn.Linear(reward_dim, self.scalarOutDim)
-
         self.bufferFc = nn.Linear(1, self.scalarOutDim)
 
         self.leftChunkFc = nn.Linear(1, self.scalarOutDim)
 
         self.bitrateFc = nn.Linear(1, self.scalarOutDim)
 
+        # fully connected layer, with input and output numbers
         self.fullyConnected = nn.Linear(self.numFcInput, self.numFcOutput)
 
+        # Add preference layer here
+        self.preferenceFc = nn.Linear(self.numFcOutput + self.reward_dim, self.numFcOutput)
+        
+        # fully connected to number of possible actions
         self.outputLayer = nn.Linear(self.numFcOutput, self.a_dim)
         # ------------------init layer weight--------------------
         # tensorflow-1.12 uses glorot_uniform(also called xavier_uniform) to initialize weight
@@ -57,7 +95,7 @@ class ActorNetwork(nn.Module):
         nn.init.constant_(self.cConv1d.bias.data, 0.0)
 
     def forward(self, inputs, preference):
-        preferenceFcOut = F.relu(self.preferenceFc(preference.view(1, -1)), inplace=True)
+        # preferenceFcOut = F.relu(self.preferenceFc(preference.view(1, -1)), inplace=True)
 
         bitrateFcOut = F.relu(self.bitrateFc(inputs[:, 0:1, -1]), inplace=True)
 
@@ -78,11 +116,18 @@ class ActorNetwork(nn.Module):
         c_flatten = cConv1dOut.view(dConv1dOut.shape[0], -1)
 
         fullyConnectedInput = torch.cat([bitrateFcOut, bufferFcOut, t_flatten, d_flatten,
-                                         c_flatten, leftChunkFcOut, preferenceFcOut], 1)
+                                         c_flatten, leftChunkFcOut], 1)
 
         fcOutput = F.relu(self.fullyConnected(fullyConnectedInput), inplace=True)
 
-        out = F.softmax(self.outputLayer(fcOutput))
+        # Add the preference vector to the fully connected output at this point,
+        # to send through another fully connected layer.
+        x = torch.cat([fcOutput, preference], dim=1)
+        preferenceOutput = self.preferenceFc(x)
+        preferenceOutput = F.relu(preferenceOutput, inplace=True)
+
+        out = self.outputLayer(preferenceOutput)
+        out = F.softmax(out)
 
         return out
 
@@ -90,11 +135,11 @@ class ActorNetwork(nn.Module):
 class CriticNetwork(nn.Module):
     # return a value V(s,a)
     # the dim of state is not considered
-    def __init__(self, state_dim, a_dim, reward_dim, n_conv=128, n_fc=128, n_fc1=128):
+    def __init__(self, state_dim, a_dim, reward_dim=3, n_conv=128, n_fc=128, n_fc1=128):
         super(CriticNetwork, self).__init__()
         self.s_dim = state_dim
         self.a_dim = a_dim
-        self.r_dim = reward_dim
+        self.reward_dim = reward_dim
         self.vectorOutDim = n_conv
         self.scalarOutDim = n_fc
         self.numFcInput = 2 * self.vectorOutDim * (
@@ -108,8 +153,6 @@ class CriticNetwork(nn.Module):
 
         self.cConv1d = nn.Conv1d(1, self.vectorOutDim, 4)
 
-        self.preferenceFc = nn.Linear(reward_dim, self.scalarOutDim)
-
         self.bufferFc = nn.Linear(1, self.scalarOutDim)
 
         self.leftChunkFc = nn.Linear(1, self.scalarOutDim)
@@ -118,7 +161,11 @@ class CriticNetwork(nn.Module):
 
         self.fullyConnected = nn.Linear(self.numFcInput, self.numFcOutput)
 
-        self.outputLayer = nn.Linear(self.numFcOutput, 1)
+        # the reward vector will be concatenated before this layer
+        self.preferenceFc = nn.Linear(self.numFcOutput + self.reward_dim, self.numFcOutput)
+
+        # input is 128 by default, output is a vector of the reward size
+        self.outputLayer = nn.Linear(self.numFcOutput, self.reward_dim)
 
         # ------------------init layer weight--------------------
         # tensorflow-1.12 uses glorot_uniform(also called xavier_uniform) to initialize weight
@@ -140,7 +187,7 @@ class CriticNetwork(nn.Module):
         nn.init.constant_(self.cConv1d.bias.data, 0.0)
 
     def forward(self, inputs, preference):
-        preferenceFcOut = F.relu(self.preferenceFc(preference.view(1, -1)), inplace=True)
+        # preferenceFcOut = F.relu(self.preferenceFc(preference.view(1, -1)), inplace=True)
 
         bitrateFcOut = F.relu(self.bitrateFc(inputs[:, 0:1, -1]), inplace=True)
 
@@ -162,11 +209,16 @@ class CriticNetwork(nn.Module):
         print(c_flatten.shape, "----shape-----")
 
         fullyConnectedInput = torch.cat([bitrateFcOut, bufferFcOut, t_flatten,
-                                         d_flatten, c_flatten, leftChunkFcOut, preferenceFcOut], 1)
+                                         d_flatten, c_flatten, leftChunkFcOut], 1)
 
         fcOutput = F.relu(self.fullyConnected(fullyConnectedInput), inplace=True)
 
-        out = self.outputLayer(fcOutput)
+        # Preference addition for MORL.
+        x = torch.cat([fcOutput, preference], dim=1)
+        preferenceOutput = self.preferenceFc(x)
+        preferenceOutput = F.relu(preferenceOutput)
+
+        out = self.outputLayer(preferenceOutput)
 
         return out
 
